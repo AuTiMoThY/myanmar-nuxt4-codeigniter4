@@ -144,6 +144,41 @@ class AuthController extends ResourceController
     }
 
     /**
+     * 取得所有使用者列表
+     */
+    public function getUsers()
+    {
+        try {
+            $token = $this->getBearerToken();
+            
+            if (!$token) {
+                return $this->fail('未提供認證 token', ResponseInterface::HTTP_UNAUTHORIZED);
+            }
+
+            $decoded = verifyJWT($token);
+            
+            if (!$decoded) {
+                return $this->fail('無效的 token', ResponseInterface::HTTP_UNAUTHORIZED);
+            }
+
+            // 可選：檢查是否有管理員權限
+            // $currentUser = $this->userModel->getUserById($decoded->user_id);
+            // if ($currentUser['role'] !== 'admin') {
+            //     return $this->fail('沒有權限', ResponseInterface::HTTP_FORBIDDEN);
+            // }
+
+            $users = $this->userModel->getAllUsers();
+
+            return $this->respond([
+                'status' => 'success',
+                'data'   => $users,
+            ], ResponseInterface::HTTP_OK);
+        } catch (\Exception $e) {
+            return $this->fail($e->getMessage(), ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * 從 Header 取得 Bearer Token
      */
     private function getBearerToken()

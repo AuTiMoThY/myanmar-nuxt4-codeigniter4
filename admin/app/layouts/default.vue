@@ -2,14 +2,14 @@
 import type { NavigationMenuItem } from "@nuxt/ui";
 import { calendar } from "~/data/menu/calendar";
 import { products } from "~/data/menu/products";
-
+import { users } from "~/data/menu/users";
 
 const route = useRoute();
 const toast = useToast();
 
 const open = ref(false);
 
-const links = [[calendar(open), products(open)]] as NavigationMenuItem[][];
+const links = [[calendar(open), products(open), users(open)]] as NavigationMenuItem[][];
 
 const groups = computed(() => [
     {

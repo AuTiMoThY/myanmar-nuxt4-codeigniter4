@@ -9,6 +9,7 @@ const { login, register } = useAuth();
 const toast = useToast();
 
 // 登入表單
+const isShowPassword = ref(false);
 const formState = reactive({
     username: "",
     password: "",
@@ -18,6 +19,20 @@ const formState = reactive({
 const isLoading = ref(false);
 const error = ref("");
 
+// 載入已儲存的帳號資訊
+onMounted(() => {
+    if (import.meta.client) {
+        const savedUsername = localStorage.getItem("remembered_username");
+        const savedPassword = localStorage.getItem("remembered_password");
+        
+        if (savedUsername && savedPassword) {
+            formState.username = savedUsername;
+            formState.password = savedPassword;
+            formState.remember = true;
+        }
+    }
+});
+
 const handleLogin = async () => {
     isLoading.value = true;
     error.value = "";
@@ -25,10 +40,23 @@ const handleLogin = async () => {
     const result = await login(formState.username, formState.password);
 
     if (result.success) {
+        // 處理記住我功能
+        if (import.meta.client) {
+            if (formState.remember) {
+                // 儲存帳號密碼
+                localStorage.setItem("remembered_username", formState.username);
+                localStorage.setItem("remembered_password", formState.password);
+            } else {
+                // 清除儲存的帳號密碼
+                localStorage.removeItem("remembered_username");
+                localStorage.removeItem("remembered_password");
+            }
+        }
+
         toast.add({
-            title: "登入成功",
-            description: "歡迎回來！",
-            color: "green",
+            title: "Login successful",
+            description: "Welcome back!",
+            color: "success",
         });
         await router.push("/");
     } else {
@@ -63,7 +91,7 @@ const isRegisterFormValid = computed(() => {
 
 const handleRegister = async () => {
     if (!isRegisterFormValid.value) {
-        registerError.value = "請確認所有欄位都已正確填寫";
+        registerError.value = "Please check all fields are correctly filled";
         return;
     }
 
@@ -79,9 +107,9 @@ const handleRegister = async () => {
 
     if (result.success) {
         toast.add({
-            title: "註冊成功",
-            description: "您已成功註冊並登入！",
-            color: "green",
+            title: "Register successful",
+            description: "You have successfully registered and logged in!",
+            color: "success",
         });
         showRegisterModal.value = false;
         await router.push("/");
@@ -109,13 +137,13 @@ const handleRegister = async () => {
                 <h2
                     class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white"
                 >
-                    登入您的帳號
+                    Admin Login
                 </h2>
             </div>
 
             <UCard>
                 <template #header>
-                    <h3 class="text-lg font-semibold">歡迎回來</h3>
+                    <h3 class="text-lg font-semibold">Welcome Back</h3>
                 </template>
 
                 <UForm
@@ -123,15 +151,11 @@ const handleRegister = async () => {
                     @submit="handleLogin"
                     class="space-y-6"
                 >
-                    <UFormField
-                        label="使用者名稱或電子郵件"
-                        name="username"
-                        required
-                    >
+                    <UFormField label="ID" name="username" required>
                         <UInput
                             v-model="formState.username"
                             type="text"
-                            placeholder="請輸入使用者名稱或電子郵件"
+                            placeholder="Enter your ID"
                             icon="i-heroicons-user"
                             size="lg"
                             :disabled="isLoading"
@@ -139,22 +163,42 @@ const handleRegister = async () => {
                         />
                     </UFormField>
 
-                    <UFormField label="密碼" name="password" required>
+                    <UFormField label="Password" name="password" required>
                         <UInput
                             v-model="formState.password"
-                            type="password"
-                            placeholder="請輸入密碼"
+                            placeholder="Enter your password"
                             icon="i-heroicons-lock-closed"
                             size="lg"
                             :disabled="isLoading"
                             class="w-full"
-                        />
+                            :type="isShowPassword ? 'text' : 'password'"
+                            :ui="{ trailing: 'pe-1' }"
+                        >
+                            <template #trailing>
+                                <UButton
+                                    color="neutral"
+                                    variant="link"
+                                    size="sm"
+                                    :icon="
+                                        isShowPassword
+                                            ? 'i-lucide-eye-off'
+                                            : 'i-lucide-eye'
+                                    "
+                                    :aria-label="
+                                        isShowPassword ? 'Hide password' : 'Show password'
+                                    "
+                                    :aria-pressed="isShowPassword"
+                                    aria-controls="password"
+                                    @click="isShowPassword = !isShowPassword"
+                                />
+                            </template>
+                        </UInput>
                     </UFormField>
 
                     <div class="flex items-center justify-between">
                         <UCheckbox
                             v-model="formState.remember"
-                            label="記住我"
+                            label="Remember me"
                         />
                         <UButton
                             variant="link"
@@ -162,7 +206,7 @@ const handleRegister = async () => {
                             size="sm"
                             :padded="false"
                         >
-                            忘記密碼？
+                            Forgot password?
                         </UButton>
                     </div>
 
@@ -173,13 +217,13 @@ const handleRegister = async () => {
                         :loading="isLoading"
                         :disabled="!formState.username || !formState.password"
                     >
-                        登入
+                        Login
                     </UButton>
 
                     <div v-if="error" class="mt-4">
                         <UAlert
                             icon="i-heroicons-exclamation-triangle"
-                            color="red"
+                            color="error"
                             variant="soft"
                             :title="error"
                         />
@@ -189,24 +233,27 @@ const handleRegister = async () => {
 
             <div class="text-center">
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                    還沒有帳號？
+                    Don't have an account?
 
                     <!-- 註冊模態框 -->
-                    <UModal :ui="{ content: 'sm:max-w-md' }">
+                    <UModal
+                        :ui="{ content: 'sm:max-w-md' }"
+                        v-model:open="showRegisterModal"
+                    >
                         <UButton
                             variant="link"
                             color="primary"
                             size="sm"
                             :padded="false"
                         >
-                            立即註冊
+                            Register
                         </UButton>
 
                         <template #content>
                             <UCard>
                                 <template #header>
                                     <h3 class="text-lg font-semibold">
-                                        註冊新帳號
+                                        Register New Account
                                     </h3>
                                 </template>
 
@@ -216,55 +263,58 @@ const handleRegister = async () => {
                                     class="space-y-4"
                                 >
                                     <UFormField
-                                        label="使用者名稱"
+                                        label="Username"
                                         name="username"
                                         required
                                     >
                                         <UInput
                                             v-model="registerState.username"
                                             type="text"
-                                            placeholder="請輸入使用者名稱"
+                                            placeholder="Enter your username"
                                             :disabled="isRegistering"
                                         />
                                     </UFormField>
 
                                     <UFormField
-                                        label="電子郵件"
+                                        label="Email"
                                         name="email"
                                         required
                                     >
                                         <UInput
                                             v-model="registerState.email"
                                             type="email"
-                                            placeholder="請輸入電子郵件"
-                                            :disabled="isRegistering"
-                                        />
-                                    </UFormField>
-
-                                    <UFormField label="全名" name="full_name">
-                                        <UInput
-                                            v-model="registerState.full_name"
-                                            type="text"
-                                            placeholder="請輸入全名（選填）"
+                                            placeholder="Enter your email"
                                             :disabled="isRegistering"
                                         />
                                     </UFormField>
 
                                     <UFormField
-                                        label="密碼"
+                                        label="Full Name"
+                                        name="full_name"
+                                    >
+                                        <UInput
+                                            v-model="registerState.full_name"
+                                            type="text"
+                                            placeholder="Enter your full name (optional)"
+                                            :disabled="isRegistering"
+                                        />
+                                    </UFormField>
+
+                                    <UFormField
+                                        label="Password"
                                         name="password"
                                         required
                                     >
                                         <UInput
                                             v-model="registerState.password"
                                             type="password"
-                                            placeholder="請輸入密碼（至少8個字元）"
+                                            placeholder="Enter your password (at least 8 characters)"
                                             :disabled="isRegistering"
                                         />
                                     </UFormField>
 
                                     <UFormField
-                                        label="確認密碼"
+                                        label="Confirm Password"
                                         name="password_confirm"
                                         required
                                     >
@@ -273,7 +323,7 @@ const handleRegister = async () => {
                                                 registerState.password_confirm
                                             "
                                             type="password"
-                                            placeholder="請再次輸入密碼"
+                                            placeholder="Enter your password again"
                                             :disabled="isRegistering"
                                         />
                                     </UFormField>
@@ -281,7 +331,7 @@ const handleRegister = async () => {
                                     <div v-if="registerError" class="mt-4">
                                         <UAlert
                                             icon="i-heroicons-exclamation-triangle"
-                                            color="red"
+                                            color="error"
                                             variant="soft"
                                             :title="registerError"
                                         />
@@ -295,7 +345,7 @@ const handleRegister = async () => {
                                             @click="showRegisterModal = false"
                                             :disabled="isRegistering"
                                         >
-                                            取消
+                                            Cancel
                                         </UButton>
                                         <UButton
                                             type="submit"
@@ -303,7 +353,7 @@ const handleRegister = async () => {
                                             :loading="isRegistering"
                                             :disabled="!isRegisterFormValid"
                                         >
-                                            註冊
+                                            Register
                                         </UButton>
                                     </div>
                                 </UForm>

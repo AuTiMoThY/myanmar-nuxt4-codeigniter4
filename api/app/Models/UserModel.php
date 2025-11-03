@@ -115,5 +115,20 @@ class UserModel extends Model
         }
         return $user;
     }
+
+    /**
+     * 取得所有使用者（不含密碼）
+     */
+    public function getAllUsers()
+    {
+        $users = $this->findAll();
+        
+        // 移除所有使用者的密碼欄位
+        foreach ($users as &$user) {
+            unset($user['password']);
+        }
+        
+        return $users;
+    }
 }
 
