@@ -1,34 +1,35 @@
 <script setup lang="ts">
-const colorMode = useColorMode()
+const colorMode = useColorMode();
+console.log("colorMode", colorMode.value);
 
-const color = computed(() => colorMode.value === 'dark' ? '#1b1718' : 'white')
+const color = computed(() =>
+    colorMode.value === "dark" ? "#1b1718" : "white"
+);
 
 useHead({
-  meta: [
-    { charset: 'utf-8' },
-    { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-    { key: 'theme-color', name: 'theme-color', content: color }
-  ],
-  link: [
-    { rel: 'icon', href: '/favicon.ico' }
-  ],
-  htmlAttrs: {
-    lang: 'en'
-  }
-})
+    meta: [
+        { charset: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { key: "theme-color", name: "theme-color", content: color },
+    ],
+    link: [{ rel: "icon", href: "/favicon.ico" }],
+    htmlAttrs: {
+        lang: "en",
+    },
+});
 
-const title = 'FARUDA admin'
-const description = 'FARUDA admin'
+const title = "FARUDA admin";
+const description = "FARUDA admin";
 
 useSeoMeta({
-  title,
-  description,
-  ogTitle: title,
-  ogDescription: description,
-  ogImage: '/logo.png',
-  twitterImage: '/logo.png',
-  twitterCard: 'summary_large_image'
-})
+    title,
+    description,
+    ogTitle: title,
+    ogDescription: description,
+    ogImage: "/logo.png",
+    twitterImage: "/logo.png",
+    twitterCard: "summary_large_image",
+});
 </script>
 
 <template>

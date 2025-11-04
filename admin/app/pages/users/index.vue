@@ -16,44 +16,32 @@ const selectedRows = ref<any[]>([]);
 // 表格欄位定義
 const columns: TableColumn<any>[] = [
     {
-        key: "id",
-        label: "ID",
-        sortable: true,
+        accessorKey: "id",
+        header: "ID",
     },
     {
-        key: "username",
-        label: "帳號",
-        sortable: true,
+        accessorKey: "username",
+        header: "Username",
     },
     {
-        key: "full_name",
-        label: "使用者全名",
-        sortable: true,
+        accessorKey: "email",
+        header: "Email",
     },
     {
-        key: "email",
-        label: "電子郵件",
-        sortable: true,
+        accessorKey: "full_name",
+        header: "Full Name",
     },
     {
-        key: "role",
-        label: "角色",
-        sortable: true,
+        accessorKey: "status",
+        header: "Status",
     },
     {
-        key: "status",
-        label: "狀態",
-        sortable: true,
+        accessorKey: "last_login",
+        header: "Last Login",
     },
     {
-        key: "updated_at",
-        label: "上次登入時間",
-        sortable: true,
-    },
-    {
-        key: "created_at",
-        label: "建立時間",
-        sortable: true,
+        accessorKey: "created_at",
+        header: "Created At",
     },
 ];
 
