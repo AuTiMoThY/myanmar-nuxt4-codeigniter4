@@ -11,7 +11,7 @@ const toast = useToast();
 // 登入表單
 const isShowPassword = ref(false);
 const formState = reactive({
-    username: "",
+    login_id: "",
     password: "",
     remember: false,
 });
@@ -22,11 +22,11 @@ const error = ref("");
 // 載入已儲存的帳號資訊
 onMounted(() => {
     if (import.meta.client) {
-        const savedUsername = localStorage.getItem("remembered_username");
+        const savedLogin_id = localStorage.getItem("remembered_login_id");
         const savedPassword = localStorage.getItem("remembered_password");
         
-        if (savedUsername && savedPassword) {
-            formState.username = savedUsername;
+        if (savedLogin_id && savedPassword) {
+            formState.login_id = savedLogin_id;
             formState.password = savedPassword;
             formState.remember = true;
         }
@@ -37,18 +37,18 @@ const handleLogin = async () => {
     isLoading.value = true;
     error.value = "";
 
-    const result = await login(formState.username, formState.password);
+    const result = await login(formState.login_id, formState.password);
 
     if (result.success) {
         // 處理記住我功能
         if (import.meta.client) {
             if (formState.remember) {
                 // 儲存帳號密碼
-                localStorage.setItem("remembered_username", formState.username);
+                localStorage.setItem("remembered_login_id", formState.login_id);
                 localStorage.setItem("remembered_password", formState.password);
             } else {
                 // 清除儲存的帳號密碼
-                localStorage.removeItem("remembered_username");
+                localStorage.removeItem("remembered_login_id");
                 localStorage.removeItem("remembered_password");
             }
         }
@@ -69,7 +69,7 @@ const handleLogin = async () => {
 // 註冊表單
 const showRegisterModal = ref(false);
 const registerState = reactive({
-    username: "",
+    login_id: "",
     email: "",
     full_name: "",
     password: "",
@@ -81,7 +81,7 @@ const registerError = ref("");
 
 const isRegisterFormValid = computed(() => {
     return (
-        registerState.username &&
+        registerState.login_id &&
         registerState.email &&
         registerState.password &&
         registerState.password.length >= 8 &&
@@ -99,7 +99,7 @@ const handleRegister = async () => {
     registerError.value = "";
 
     const result = await register({
-        username: registerState.username,
+        login_id: registerState.login_id,
         email: registerState.email,
         full_name: registerState.full_name,
         password: registerState.password,
@@ -137,13 +137,13 @@ const handleRegister = async () => {
                 <h2
                     class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white"
                 >
-                    Admin Login
+                    登入
                 </h2>
             </div>
 
             <UCard>
                 <template #header>
-                    <h3 class="text-lg font-semibold">Welcome Back</h3>
+                    <h3 class="text-lg font-semibold">歡迎回來</h3>
                 </template>
 
                 <UForm
@@ -151,11 +151,11 @@ const handleRegister = async () => {
                     @submit="handleLogin"
                     class="space-y-6"
                 >
-                    <UFormField label="ID" name="username" required>
+                    <UFormField label="帳號" name="login_id" required>
                         <UInput
-                            v-model="formState.username"
+                            v-model="formState.login_id"
                             type="text"
-                            placeholder="Enter your ID"
+                            placeholder="請輸入您的帳號"
                             icon="i-heroicons-user"
                             size="lg"
                             :disabled="isLoading"
@@ -163,10 +163,10 @@ const handleRegister = async () => {
                         />
                     </UFormField>
 
-                    <UFormField label="Password" name="password" required>
+                    <UFormField label="密碼" name="password" required>
                         <UInput
                             v-model="formState.password"
-                            placeholder="Enter your password"
+                            placeholder="請輸入您的密碼"
                             icon="i-heroicons-lock-closed"
                             size="lg"
                             :disabled="isLoading"
@@ -198,7 +198,7 @@ const handleRegister = async () => {
                     <div class="flex items-center justify-between">
                         <UCheckbox
                             v-model="formState.remember"
-                            label="Remember me"
+                            label="記住我"
                         />
                         <UButton
                             variant="link"
@@ -206,7 +206,7 @@ const handleRegister = async () => {
                             size="sm"
                             :padded="false"
                         >
-                            Forgot password?
+                            忘記密碼?
                         </UButton>
                     </div>
 
@@ -215,9 +215,9 @@ const handleRegister = async () => {
                         block
                         size="lg"
                         :loading="isLoading"
-                        :disabled="!formState.username || !formState.password"
+                        :disabled="!formState.login_id || !formState.password"
                     >
-                        Login
+                        登入
                     </UButton>
 
                     <div v-if="error" class="mt-4">
@@ -233,7 +233,7 @@ const handleRegister = async () => {
 
             <div class="text-center">
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                    Don't have an account?
+                    還沒有帳號嗎?
 
                     <!-- 註冊模態框 -->
                     <UModal
@@ -246,14 +246,14 @@ const handleRegister = async () => {
                             size="sm"
                             :padded="false"
                         >
-                            Register
+                            註冊
                         </UButton>
 
                         <template #content>
                             <UCard>
                                 <template #header>
                                     <h3 class="text-lg font-semibold">
-                                        Register New Account
+                                        註冊新帳號
                                     </h3>
                                 </template>
 
@@ -263,58 +263,58 @@ const handleRegister = async () => {
                                     class="space-y-4"
                                 >
                                     <UFormField
-                                        label="Username"
+                                        label="帳號"
                                         name="username"
                                         required
                                     >
                                         <UInput
                                             v-model="registerState.username"
                                             type="text"
-                                            placeholder="Enter your username"
+                                                placeholder="請輸入您的帳號"
                                             :disabled="isRegistering"
                                         />
                                     </UFormField>
 
                                     <UFormField
-                                        label="Email"
+                                        label="電子信箱"
                                         name="email"
                                         required
                                     >
                                         <UInput
                                             v-model="registerState.email"
                                             type="email"
-                                            placeholder="Enter your email"
+                                            placeholder="請輸入您的電子信箱"
                                             :disabled="isRegistering"
                                         />
                                     </UFormField>
 
                                     <UFormField
-                                        label="Full Name"
+                                        label="姓名"
                                         name="full_name"
                                     >
                                         <UInput
                                             v-model="registerState.full_name"
                                             type="text"
-                                            placeholder="Enter your full name (optional)"
+                                            placeholder="請輸入您的姓名"
                                             :disabled="isRegistering"
                                         />
                                     </UFormField>
 
                                     <UFormField
-                                        label="Password"
+                                        label="密碼"
                                         name="password"
                                         required
                                     >
                                         <UInput
                                             v-model="registerState.password"
                                             type="password"
-                                            placeholder="Enter your password (at least 8 characters)"
+                                            placeholder="請輸入您的密碼"
                                             :disabled="isRegistering"
                                         />
                                     </UFormField>
 
                                     <UFormField
-                                        label="Confirm Password"
+                                        label="確認密碼"
                                         name="password_confirm"
                                         required
                                     >
@@ -323,7 +323,7 @@ const handleRegister = async () => {
                                                 registerState.password_confirm
                                             "
                                             type="password"
-                                            placeholder="Enter your password again"
+                                            placeholder="請再次輸入您的密碼"
                                             :disabled="isRegistering"
                                         />
                                     </UFormField>
@@ -345,7 +345,7 @@ const handleRegister = async () => {
                                             @click="showRegisterModal = false"
                                             :disabled="isRegistering"
                                         >
-                                            Cancel
+                                            取消
                                         </UButton>
                                         <UButton
                                             type="submit"
@@ -353,7 +353,7 @@ const handleRegister = async () => {
                                             :loading="isRegistering"
                                             :disabled="!isRegisterFormValid"
                                         >
-                                            Register
+                                            註冊
                                         </UButton>
                                     </div>
                                 </UForm>

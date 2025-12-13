@@ -23,7 +23,7 @@ class AuthController extends ResourceController
     public function login()
     {
         $rules = [
-            'username' => 'required',
+            'login_id' => 'required',
             'password' => 'required',
         ];
 
@@ -31,10 +31,10 @@ class AuthController extends ResourceController
             return $this->fail($this->validator->getErrors(), ResponseInterface::HTTP_BAD_REQUEST);
         }
 
-        $username = $this->request->getVar('username');
+        $login_id = $this->request->getVar('login_id');
         $password = $this->request->getVar('password');
 
-        $user = $this->userModel->verifyLogin($username, $password);
+        $user = $this->userModel->verifyLogin($login_id, $password);
 
         if (!$user) {
             return $this->fail('使用者名稱或密碼錯誤', ResponseInterface::HTTP_UNAUTHORIZED);
@@ -103,7 +103,7 @@ class AuthController extends ResourceController
     public function register()
     {
         $rules = [
-            'username'  => 'required|min_length[3]|max_length[100]|is_unique[users.username]',
+            'login_id'  => 'required|min_length[3]|max_length[100]|is_unique[users.login_id]',
             'email'     => 'required|valid_email|is_unique[users.email]',
             'password'  => 'required|min_length[8]',
             'full_name' => 'permit_empty|max_length[255]',
@@ -114,7 +114,7 @@ class AuthController extends ResourceController
         }
 
         $data = [
-            'username'  => $this->request->getVar('username'),
+            'login_id'  => $this->request->getVar('login_id'),
             'email'     => $this->request->getVar('email'),
             'password'  => $this->request->getVar('password'),
             'full_name' => $this->request->getVar('full_name'),
@@ -172,6 +172,110 @@ class AuthController extends ResourceController
             return $this->respond([
                 'status' => 'success',
                 'data'   => $users,
+            ], ResponseInterface::HTTP_OK);
+        } catch (\Exception $e) {
+            return $this->fail($e->getMessage(), ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * 取得單一使用者
+     */
+    public function getUser($id = null)
+    {
+        try {
+            $token = $this->getBearerToken();
+
+            if (!$token) {
+                return $this->fail('未提供認證 token', ResponseInterface::HTTP_UNAUTHORIZED);
+            }
+
+            $decoded = verifyJWT($token);
+
+            if (!$decoded) {
+                return $this->fail('無效的 token', ResponseInterface::HTTP_UNAUTHORIZED);
+            }
+
+            if (!$id || !is_numeric($id)) {
+                return $this->fail('無效的使用者 ID', ResponseInterface::HTTP_BAD_REQUEST);
+            }
+
+            $user = $this->userModel->getUserById((int) $id);
+
+            if (!$user) {
+                return $this->fail('找不到使用者', ResponseInterface::HTTP_NOT_FOUND);
+            }
+
+            return $this->respond([
+                'status' => 'success',
+                'data'   => $user,
+            ], ResponseInterface::HTTP_OK);
+        } catch (\Exception $e) {
+            return $this->fail($e->getMessage(), ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * 更新使用者
+     */
+    public function updateUser($id = null)
+    {
+        try {
+            $token = $this->getBearerToken();
+
+            if (!$token) {
+                return $this->fail('未提供認證 token', ResponseInterface::HTTP_UNAUTHORIZED);
+            }
+
+            $decoded = verifyJWT($token);
+
+            if (!$decoded) {
+                return $this->fail('無效的 token', ResponseInterface::HTTP_UNAUTHORIZED);
+            }
+
+            if (!$id || !is_numeric($id)) {
+                return $this->fail('無效的使用者 ID', ResponseInterface::HTTP_BAD_REQUEST);
+            }
+
+            $rules = [
+                'login_id' => 'permit_empty|min_length[3]|max_length[100]|is_unique[users.login_id,id,{id}]',
+                'email'    => 'permit_empty|valid_email|is_unique[users.email,id,{id}]',
+                'password' => 'permit_empty|min_length[8]',
+                'name'     => 'permit_empty|max_length[255]',
+                'status'   => 'permit_empty|in_list[active,inactive,suspended]',
+            ];
+
+            // 在替換規則中的 {id}
+            $this->validator->setRules($rules);
+            $data = $this->request->getRawInput();
+            if (!$this->validate($rules)) {
+                return $this->fail($this->validator->getErrors(), ResponseInterface::HTTP_BAD_REQUEST);
+            }
+
+            // 準備可更新欄位
+            $updateData = [];
+            foreach (['login_id', 'email', 'password', 'name', 'status'] as $field) {
+                if (array_key_exists($field, $data) && $data[$field] !== null && $data[$field] !== '') {
+                    $updateData[$field] = $data[$field];
+                }
+            }
+
+            if (empty($updateData)) {
+                return $this->fail('沒有可更新的欄位', ResponseInterface::HTTP_BAD_REQUEST);
+            }
+
+            $updated = $this->userModel->update((int) $id, $updateData);
+
+            if (!$updated) {
+                return $this->fail('更新失敗', ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            $user = $this->userModel->getUserById((int) $id);
+
+            return $this->respond([
+                'status'  => 'success',
+                'message' => '更新成功',
+                'data'    => $user,
             ], ResponseInterface::HTTP_OK);
         } catch (\Exception $e) {
             return $this->fail($e->getMessage(), ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);

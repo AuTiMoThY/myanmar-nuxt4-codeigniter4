@@ -184,9 +184,9 @@ const items = computed<DropdownMenuItem[][]>(() => [
                 <span
                     class="rounded-full ring ring-bg bg-(--chip-light) dark:bg-(--chip-dark) size-2"
                     :style="{
-            '--chip-light': `var(--color-${(item as any).chip}-500)`,
-            '--chip-dark': `var(--color-${(item as any).chip}-400)`
-          }"
+                        '--chip-light': `var(--color-${(item as any).chip}-500)`,
+                        '--chip-dark': `var(--color-${(item as any).chip}-400)`
+                    }"
                 />
             </div>
         </template>

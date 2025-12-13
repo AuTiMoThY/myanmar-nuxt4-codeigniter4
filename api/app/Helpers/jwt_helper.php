@@ -20,9 +20,10 @@ if (!function_exists('generateJWT')) {
             'iat'     => $issuedAt,
             'exp'     => $expireAt,
             'user_id' => $user['id'],
-            'username' => $user['username'],
-            'email'   => $user['email'],
-            'role'    => $user['role'],
+            'login_id' => $user['login_id'],
+            'email'   => $user['email'] ?? null,
+            // 兼容：RBAC 使用關聯表，不一定有單一 role 欄位
+            'role'    => $user['role'] ?? 'user',
         ];
 
         return JWT::encode($payload, $key, 'HS256');

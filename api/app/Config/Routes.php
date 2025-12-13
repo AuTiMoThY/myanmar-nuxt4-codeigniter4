@@ -25,6 +25,9 @@ $routes->group('api', ['namespace' => 'App\Controllers'], function ($routes) {
     $routes->options('auth/users', function() {
         return service('response')->setStatusCode(200);
     });
+    $routes->options('auth/users/(:num)', function() {
+        return service('response')->setStatusCode(200);
+    });
     
     // 公開路由
     $routes->post('auth/login', 'AuthController::login');
@@ -34,4 +37,6 @@ $routes->group('api', ['namespace' => 'App\Controllers'], function ($routes) {
     $routes->post('auth/logout', 'AuthController::logout');
     $routes->get('auth/me', 'AuthController::me');
     $routes->get('auth/users', 'AuthController::getUsers');
+    $routes->get('auth/users/(:num)', 'AuthController::getUser/$1');
+    $routes->put('auth/users/(:num)', 'AuthController::updateUser/$1');
 });

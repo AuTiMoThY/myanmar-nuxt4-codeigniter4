@@ -4,7 +4,7 @@ export default defineNuxtConfig({
     devtools: { enabled: true },
     ssr: false, // 禁用 SSR，使用 SPA 模式（適合後台管理系統）
     modules: ["@nuxt/ui", "@nuxt/eslint", "@vueuse/nuxt", "@nuxt/image"],
-    css: ["~/assets/scss/default.css"],
+    css: ["~/assets/scss/default.css", "~/assets/scss/main.scss"],
     runtimeConfig: {
         public: {
             apiBase:
@@ -22,7 +22,7 @@ export default defineNuxtConfig({
         css: {
             preprocessorOptions: {
                 scss: {
-                    // additionalData: '@use "@/assets/scss/main.scss" as *;',
+                    // additionalData: '@use "~/assets/scss/main.scss" as *;',
                 },
             },
         },

@@ -7,7 +7,9 @@
         "dev": "nuxt dev",
         "generate": "nuxt generate",
         "preview": "nuxt preview",
-        "postinstall": "nuxt prepare"
+        "postinstall": "nuxt prepare",
+        "dev:admin": "npm run dev",
+        "dev:api": "cd ../api && php spark serve"
     },
     "dependencies": {
         "@iconify-json/lucide": "^1.2.71",

@@ -44,6 +44,7 @@
 6. **啟動伺服器**
    ```bash
    php spark serve
+   php spark serve --port 8081
    ```
    API 將在 http://localhost:8080 運行
 

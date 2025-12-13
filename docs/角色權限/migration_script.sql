@@ -11,10 +11,34 @@
 -- 5. 執行此腳本
 
 SET FOREIGN_KEY_CHECKS = 0;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ==========================================
 -- 步驟 1: 遷移使用者基本資料
 -- ==========================================
+
+-- 1a. 新增兼容升級欄位（若不存在）- 使用 INFORMATION_SCHEMA + 動態 SQL 相容舊版 MySQL
+SET @col_exists := (
+  SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'legacy_password'
+);
+SET @sql := IF(@col_exists = 0, 'ALTER TABLE users ADD COLUMN legacy_password VARCHAR(255) NULL', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+  SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'legacy_algo'
+);
+SET @sql := IF(@col_exists = 0, 'ALTER TABLE users ADD COLUMN legacy_algo VARCHAR(50) NULL', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 1b. 若密碼為舊系統明碼，將其複製到 legacy_password，標記演算法
+UPDATE users
+SET legacy_password = password,
+    legacy_algo = 'plain'
+WHERE password IS NOT NULL
+  AND password NOT LIKE '$2y$%'        -- 非 bcrypt
+  AND password NOT LIKE '$argon2%';    -- 非 argon2
 
 INSERT INTO users (
   id, 
@@ -28,33 +52,82 @@ INSERT INTO users (
   expiration_date, 
   created_at, 
   updated_at, 
-  last_login_at
+  last_login_at,
+  legacy_password,
+  legacy_algo
 )
 SELECT 
-  sysloginID as id,
-  loginID as login_id,
-  password,
-  name,
+  s.sysloginID as id,
+  s.loginID as login_id,
+  s.password,
+  s.name,
   NULL as email, -- 舊系統沒有 email 欄位
-  pic,
-  profile,
+  s.pic,
+  s.profile,
   CASE 
-    WHEN expiration_chk = 1 AND expiration_date < CURDATE() THEN 'expired'
-    WHEN expiration_chk = 1 THEN 'active'
+    WHEN s.expiration_chk = 1 
+      AND (
+        CASE 
+          WHEN s.expiration_date IS NULL OR TRIM(s.expiration_date) IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN NULL
+          WHEN s.expiration_date LIKE '%:%' THEN DATE(STR_TO_DATE(s.expiration_date, '%Y-%m-%d %H:%i:%s'))
+          ELSE DATE(STR_TO_DATE(s.expiration_date, '%Y-%m-%d'))
+        END
+      ) IS NOT NULL
+      AND (
+        CASE 
+          WHEN s.expiration_date IS NULL OR TRIM(s.expiration_date) IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN NULL
+          WHEN s.expiration_date LIKE '%:%' THEN DATE(STR_TO_DATE(s.expiration_date, '%Y-%m-%d %H:%i:%s'))
+          ELSE DATE(STR_TO_DATE(s.expiration_date, '%Y-%m-%d'))
+        END
+      ) < CURDATE()
+    THEN 'expired'
+    WHEN s.expiration_chk = 1 THEN 'active'
     ELSE 'active'
   END as status,
   CASE 
-    WHEN expiration_date = '0000-00-00' THEN NULL 
-    ELSE expiration_date 
+    WHEN s.expiration_date IS NULL OR TRIM(s.expiration_date) IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN NULL
+    WHEN s.expiration_date LIKE '%:%' THEN DATE(STR_TO_DATE(s.expiration_date, '%Y-%m-%d %H:%i:%s'))
+    ELSE DATE(STR_TO_DATE(s.expiration_date, '%Y-%m-%d'))
   END as expiration_date,
-  COALESCE(create_time, NOW()) as created_at,
-  COALESCE(update_time, NOW()) as updated_at,
-  time as last_login_at
-FROM sys_loginsystem
+  CASE
+    WHEN s.create_time IS NULL OR TRIM(s.create_time) IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN NOW()
+    WHEN s.create_time LIKE '%:%' THEN STR_TO_DATE(s.create_time, '%Y-%m-%d %H:%i:%s')
+    ELSE STR_TO_DATE(s.create_time, '%Y-%m-%d')
+  END as created_at,
+  CASE
+    WHEN s.update_time IS NULL OR TRIM(s.update_time) IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN NOW()
+    WHEN s.update_time LIKE '%:%' THEN STR_TO_DATE(s.update_time, '%Y-%m-%d %H:%i:%s')
+    ELSE STR_TO_DATE(s.update_time, '%Y-%m-%d')
+  END as updated_at,
+  CASE 
+    WHEN s.time IS NULL OR TRIM(s.time) IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN NULL
+    WHEN s.time LIKE '%:%' THEN STR_TO_DATE(s.time, '%Y-%m-%d %H:%i:%s')
+    ELSE STR_TO_DATE(s.time, '%Y-%m-%d')
+  END as last_login_at,
+  s.password as legacy_password,
+  'plain' as legacy_algo
+FROM sys_loginsystem s
+JOIN (
+  SELECT MIN(sysloginID) as sysloginID
+  FROM sys_loginsystem
+  GROUP BY loginID
+) d ON d.sysloginID = s.sysloginID
 WHERE NOT EXISTS (
-  SELECT 1 FROM users WHERE users.id = sys_loginsystem.sysloginID
+  SELECT 1 FROM users u WHERE u.id = s.sysloginID
+)
+AND NOT EXISTS (
+  SELECT 1 FROM users u2 
+  WHERE CONVERT(u2.login_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(s.loginID USING utf8mb4) COLLATE utf8mb4_unicode_ci
 );
 
+-- 1c. 再次補強：對已插入但尚未回填 legacy 欄位的資料進行回填
+UPDATE users
+SET legacy_password = password,
+    legacy_algo = 'plain'
+WHERE legacy_password IS NULL
+  AND password IS NOT NULL
+  AND password NOT LIKE '$2y$%'
+  AND password NOT LIKE '$argon2%';
 -- ==========================================
 -- 步驟 2: 遷移使用者備註
 -- ==========================================
@@ -69,6 +142,7 @@ SELECT
 FROM sys_loginsystem
 WHERE note_finance IS NOT NULL 
   AND note_finance != ''
+  AND EXISTS (SELECT 1 FROM users u WHERE u.id = sys_loginsystem.sysloginID)
   AND NOT EXISTS (
     SELECT 1 FROM user_notes 
     WHERE user_notes.user_id = sys_loginsystem.sysloginID 
@@ -85,6 +159,7 @@ SELECT
 FROM sys_loginsystem
 WHERE note_deliver IS NOT NULL 
   AND note_deliver != ''
+  AND EXISTS (SELECT 1 FROM users u WHERE u.id = sys_loginsystem.sysloginID)
   AND NOT EXISTS (
     SELECT 1 FROM user_notes 
     WHERE user_notes.user_id = sys_loginsystem.sysloginID 
@@ -101,6 +176,7 @@ SELECT
 FROM sys_loginsystem
 WHERE note_purchase IS NOT NULL 
   AND note_purchase != ''
+  AND EXISTS (SELECT 1 FROM users u WHERE u.id = sys_loginsystem.sysloginID)
   AND NOT EXISTS (
     SELECT 1 FROM user_notes 
     WHERE user_notes.user_id = sys_loginsystem.sysloginID 
@@ -113,10 +189,10 @@ WHERE note_purchase IS NOT NULL
 
 DROP TEMPORARY TABLE IF EXISTS temp_power_mapping;
 CREATE TEMPORARY TABLE temp_power_mapping (
-  power_field VARCHAR(100),
-  permission_name VARCHAR(100),
+  power_field VARCHAR(100) COLLATE utf8mb4_unicode_ci,
+  permission_name VARCHAR(100) COLLATE utf8mb4_unicode_ci,
   min_value INT DEFAULT 1 -- power_* 欄位需要達到的最小值
-);
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 插入權限映射關係
 INSERT INTO temp_power_mapping (power_field, permission_name, min_value) VALUES
@@ -295,7 +371,7 @@ BEGIN
       NOW(),
       NULL
     FROM temp_power_mapping m
-    JOIN permissions p ON p.name = m.permission_name
+    JOIN permissions p ON CONVERT(p.name USING utf8mb4) COLLATE utf8mb4_unicode_ci = m.permission_name COLLATE utf8mb4_unicode_ci
     WHERE EXISTS (
       SELECT 1 
       FROM sys_loginsystem s 
@@ -344,7 +420,7 @@ SELECT
   (SELECT id FROM roles WHERE name = 'super_admin'),
   NOW()
 FROM users u
-WHERE u.login_id = 'jeffery';
+WHERE CONVERT(u.login_id USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT('jeffery' USING utf8mb4) COLLATE utf8mb4_unicode_ci;
 
 -- ==========================================
 -- 步驟 6: 驗證遷移結果

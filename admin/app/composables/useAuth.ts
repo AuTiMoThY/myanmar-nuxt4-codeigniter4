@@ -24,7 +24,7 @@ export const useAuth = () => {
     /**
      * 登入
      */
-    const login = async (username: string, password: string) => {
+    const login = async (login_id: string, password: string) => {
         try {
             const response = await $fetch<{
                 status: string;
@@ -40,7 +40,7 @@ export const useAuth = () => {
                 },
                 credentials: "include",
                 body: {
-                    username,
+                    login_id,
                     password,
                 },
             });
@@ -152,7 +152,7 @@ export const useAuth = () => {
      * 註冊
      */
     const register = async (data: {
-        username: string;
+        login_id: string;
         email: string;
         password: string;
         full_name?: string;
