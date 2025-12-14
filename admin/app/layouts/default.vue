@@ -1,50 +1,141 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from "@nuxt/ui";
-import { calendar } from "~/data/menu/calendar";
-import { products } from "~/data/menu/products";
-import { users } from "~/data/menu/users";
+// import { calendar } from "~/data/menu/calendar";
+// import { products } from "~/data/menu/products";
+// import { users } from "~/data/menu/users";
+import { system } from "~/constants/menu/system";
+
+const { data: structureData, fetchData: fetchStructure } = useStructure();
+const { data: modulesData, fetchData: fetchModules } = useModule();
 
 const route = useRoute();
-const toast = useToast();
-
 const open = ref(false);
 
-const links = [[calendar(open), products(open), users(open)]] as NavigationMenuItem[][];
+// 檢查某個 menu item 或其子層級是否包含當前路由
+const hasActiveRoute = (item: any, currentPath: string): boolean => {
+    // 如果當前 item 有 to 且匹配當前路由
+    const itemPath =
+        item?.to || item?.path || (item?.name ? `/${item.name}` : undefined);
+    if (itemPath && currentPath === itemPath) {
+        return true;
+    }
+
+    // 檢查子層級
+    if (item?.children && item.children.length > 0) {
+        return item.children.some((child: any) =>
+            hasActiveRoute(child, currentPath)
+        );
+    }
+
+    return false;
+};
+
+const resolveModulePath = (moduleId: any): string | undefined => {
+    if (!moduleId) return undefined;
+    const found = modulesData.value?.find(
+        (m: any) => String(m.id) === String(moduleId)
+    );
+    return found?.name ? `/${found.name}` : undefined;
+};
+
+const mapStructureToMenu = (
+    item: any,
+    sidebarOpen: Ref<boolean>
+): NavigationMenuItem => {
+    const hasChildren = item?.children && item?.children.length > 0;
+    const currentPath = route.path;
+    const isActive = hasActiveRoute(item, currentPath);
+
+    const baseMenu: NavigationMenuItem = {
+        label: item?.label,
+        icon: item?.icon || "lucide:network",
+    };
+
+    if (hasChildren) {
+        // 有子層級：建立 children 陣列
+        return {
+            ...baseMenu,
+            open: !isActive, // 如果包含當前路由，不收起（展開）
+            children: item.children.map((child: any) =>
+                mapStructureToMenu(child, sidebarOpen)
+            ),
+        };
+    } else {
+        // 無子層級：設定 to 屬性
+        return {
+            ...baseMenu,
+            to:
+                resolveModulePath(item?.module_id) ||
+                item?.to ||
+                item?.path ||
+                (item?.name ? `/${item.name}` : undefined),
+            onSelect: () => {
+                sidebarOpen.value = false;
+            },
+        };
+    }
+};
+
+const buildStructureMenu = (
+    sidebarOpen: Ref<boolean>
+): NavigationMenuItem[] => {
+    return (structureData.value || []).map((item) =>
+        mapStructureToMenu(item, sidebarOpen)
+    );
+};
+
+// 檢查當前路由是否在 system 子項目中
+const checkSystemActive = (): boolean => {
+    const currentPath = route.path;
+    const systemPaths = [
+        "/system/structure",
+        "/system/module",
+        "/system/users",
+        "/system/permissions",
+    ];
+    return systemPaths.includes(currentPath);
+};
+const isSystemActive = computed(() => checkSystemActive());
+const links = computed(() => {
+    const structureMenuItems = buildStructureMenu(open);
+    return [
+        [...structureMenuItems, system(isSystemActive)]
+    ] as NavigationMenuItem[][];
+});
 
 const groups = computed(() => [
     {
         id: "links",
         label: "Go to",
-        items: links.flat(),
+        items: links.value.flat(),
     },
 ]);
 
 onMounted(async () => {
-    const cookie = useCookie("cookie-consent");
-    if (cookie.value === "accepted") {
-        return;
-    }
-
-    toast.add({
-        title: "We use first-party cookies to enhance your experience on our website.",
-        duration: 0,
-        close: false,
-        actions: [
-            {
-                label: "Accept",
-                color: "neutral",
-                variant: "outline",
-                onClick: () => {
-                    cookie.value = "accepted";
-                },
-            },
-            {
-                label: "Opt out",
-                color: "neutral",
-                variant: "ghost",
-            },
-        ],
-    });
+    // const cookie = useCookie("cookie-consent");
+    // if (cookie.value === "accepted") {
+    //     return;
+    // }
+    // toast.add({
+    //     title: "We use first-party cookies to enhance your experience on our website.",
+    //     duration: 0,
+    //     close: false,
+    //     actions: [
+    //         {
+    //             label: "Accept",
+    //             color: "neutral",
+    //             variant: "outline",
+    //             onClick: () => {
+    //                 cookie.value = "accepted";
+    //             },
+    //         },
+    //         {
+    //             label: "Opt out",
+    //             color: "neutral",
+    //             variant: "ghost",
+    //         },
+    //     ],
+    // });
 });
 </script>
 
