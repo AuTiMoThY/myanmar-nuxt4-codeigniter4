@@ -1,16 +1,16 @@
 <?php
 namespace App\Controllers;
 
-use App\Models\SysstructureModel;
+use App\Models\SysStructureModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class StructureController extends BaseController
 {
-    protected $sysstructureModel;
+    protected $SysStructureModel;
 
     public function __construct()
     {
-        $this->sysstructureModel = new SysstructureModel();
+        $this->SysStructureModel = new SysStructureModel();
     }
 
     /**
@@ -22,7 +22,6 @@ class StructureController extends BaseController
 
         // 將布林/字串狀態轉成 '0'/'1'
         $truthy = ['1', 1, true, 'true', 'on', 'yes'];
-
 
         $status = $data['status'] ?? null;
 
@@ -38,6 +37,7 @@ class StructureController extends BaseController
             'status' => 'required|in_list[0,1]',
             'parent_id' => 'permit_empty|is_natural',
             'sort_order' => 'permit_empty|integer',
+            'url' => 'permit_empty|max_length[255]',
         ];
 
         if (!$this->validateData($data, $rules)) {
@@ -52,6 +52,7 @@ class StructureController extends BaseController
             $insertData = [
                 'label' => $data['label'],
                 'module_id' => $data['module_id'],
+                'url' => isset($data['url']) && !empty(trim($data['url'])) ? trim($data['url']) : null,
                 'status' => (int) $data['status'],
                 'sort_order' => isset($data['sort_order']) ? (int) $data['sort_order'] : 0,
             ];
@@ -59,7 +60,7 @@ class StructureController extends BaseController
             // 如果有 parent_id，驗證父層級是否存在
             if (isset($data['parent_id']) && $data['parent_id'] !== null && $data['parent_id'] !== '') {
                 $parentId = (int) $data['parent_id'];
-                $parent = $this->sysstructureModel->find($parentId);
+                $parent = $this->SysStructureModel->find($parentId);
                 if (!$parent) {
                     return $this->response->setStatusCode(ResponseInterface::HTTP_BAD_REQUEST)->setJSON([
                         'success' => false,
@@ -71,7 +72,7 @@ class StructureController extends BaseController
                 $insertData['parent_id'] = null;
             }
 
-            $insertId = $this->sysstructureModel->insert($insertData);
+            $insertId = $this->SysStructureModel->insert($insertData);
 
             if (!$insertId) {
                 return $this->response->setStatusCode(ResponseInterface::HTTP_INTERNAL_SERVER_ERROR)->setJSON([
@@ -108,9 +109,9 @@ class StructureController extends BaseController
             $tree = $this->request->getGet('tree') === '1' || $this->request->getGet('tree') === 'true';
 
             if ($tree) {
-                $levels = $this->sysstructureModel->getAllLevels($onlyActive);
+                $levels = $this->SysStructureModel->getAllLevels($onlyActive);
             } else {
-                $levels = $this->sysstructureModel->findAll();
+                $levels = $this->SysStructureModel->findAll();
             }
 
             return $this->response->setJSON([
@@ -144,7 +145,7 @@ class StructureController extends BaseController
         }
 
         // 檢查層級是否存在
-        $level = $this->sysstructureModel->find($id);
+        $level = $this->SysStructureModel->find($id);
         if (!$level) {
             return $this->response->setStatusCode(ResponseInterface::HTTP_NOT_FOUND)->setJSON([
                 'success' => false,
@@ -154,7 +155,6 @@ class StructureController extends BaseController
 
         // 將布林/字串狀態轉成 '0'/'1'
         $truthy = ['1', 1, true, 'true', 'on', 'yes'];
-
 
         if (isset($data['status'])) {
             $status = $data['status'];
@@ -166,6 +166,7 @@ class StructureController extends BaseController
             'status' => 'permit_empty|in_list[0,1]',
             'parent_id' => 'permit_empty|is_natural',
             'sort_order' => 'permit_empty|integer',
+            'url' => 'permit_empty|max_length[255]',
         ];
 
         if (!$this->validateData($data, $rules)) {
@@ -182,8 +183,12 @@ class StructureController extends BaseController
             if (isset($data['label'])) {
                 $updateData['label'] = $data['label'];
             }
-            if (isset($data['module_id'])) {
-                $updateData['module_id'] = $data['module_id'];
+            // 使用 array_key_exists 以支援 null 值
+            if (array_key_exists('module_id', $data)) {
+                $updateData['module_id'] = $data['module_id'] === '' ? null : $data['module_id'];
+            }
+            if (array_key_exists('url', $data)) {
+                $updateData['url'] = $data['url'] === '' ? null : (isset($data['url']) && !empty(trim($data['url'])) ? trim($data['url']) : null);
             }
             if (isset($data['status'])) {
                 $updateData['status'] = (int) $data['status'];
@@ -206,7 +211,7 @@ class StructureController extends BaseController
                         ]);
                     }
                     // 驗證父層級是否存在
-                    $parent = $this->sysstructureModel->find($parentId);
+                    $parent = $this->SysStructureModel->find($parentId);
                     if (!$parent) {
                         return $this->response->setStatusCode(ResponseInterface::HTTP_BAD_REQUEST)->setJSON([
                             'success' => false,
@@ -217,7 +222,7 @@ class StructureController extends BaseController
                 }
             }
 
-            $updated = $this->sysstructureModel->update($id, $updateData);
+            $updated = $this->SysStructureModel->update($id, $updateData);
 
             if (!$updated) {
                 return $this->response->setStatusCode(ResponseInterface::HTTP_INTERNAL_SERVER_ERROR)->setJSON([
@@ -258,7 +263,7 @@ class StructureController extends BaseController
 
         try {
             // 檢查是否有子層級
-            $children = $this->sysstructureModel->getChildren($id);
+            $children = $this->SysStructureModel->getChildren($id);
             if (!empty($children)) {
                 return $this->response->setStatusCode(ResponseInterface::HTTP_BAD_REQUEST)->setJSON([
                     'success' => false,
@@ -266,7 +271,7 @@ class StructureController extends BaseController
                 ]);
             }
 
-            $deleted = $this->sysstructureModel->delete($id);
+            $deleted = $this->SysStructureModel->delete($id);
             if (!$deleted) {
                 return $this->response->setStatusCode(ResponseInterface::HTTP_INTERNAL_SERVER_ERROR)->setJSON([
                     'success' => false,
@@ -317,7 +322,7 @@ class StructureController extends BaseController
         }
 
         try {
-            $updated = $this->sysstructureModel->updateSortOrder($list);
+            $updated = $this->SysStructureModel->updateSortOrder($list);
             if (!$updated) {
                 return $this->response->setStatusCode(ResponseInterface::HTTP_INTERNAL_SERVER_ERROR)->setJSON([
                     'success' => false,

@@ -2,31 +2,60 @@
 definePageMeta({
     middleware: "auth"
 });
+import {
+    computed,
+    nextTick,
+    onMounted,
+    onUnmounted,
+    ref,
+    shallowRef
+} from "vue";
 import { useSortable } from "@vueuse/integrations/useSortable";
 import StructureLevelModal from "~/components/Structure/LevelModal.vue";
 import StructureTreeTableRow from "~/components/Structure/TreeTableRow.vue";
 
-const { data, loading, fetchData, updateSortOrder, deleteLevel } = useStructure();
+const { data, loading, fetchData, updateSortOrder, deleteLevel } =
+    useStructure();
 const rootBodyRef = ref<HTMLElement | null>(null);
+let sortableStop: (() => void) | null = null;
 
 // Modal 狀態
 const addRootModalOpen = ref(false);
 const addSubLevelModalOpen = ref(false);
 const editModalOpen = ref(false);
-
+const deleteConfirmModalOpen = ref(false);
+const deleteTarget = ref<{ id: string; label: string } | null>(null);
 // 當前操作的層級資料
 const currentParentLevel = ref<any>(null);
 const currentEditLevel = ref<any>(null);
 
-const handleModalSuccess = () => {
-    fetchData();
+const handleModalSuccess = async () => {
+    await fetchData();
+    await nextTick();
+    setupRootSortable();
 };
 
 const rootLevels = computed(() => (data.value || []).filter(Boolean));
 
-const handleDelete = async (level: any) => {
-    await deleteLevel(level, { onSuccess: fetchData });
+const handleDelete = (level: any) => {
+    console.log("handleDelete", level);
+    
+    deleteTarget.value = { id: level.id, label: level.label };
+    deleteConfirmModalOpen.value = true;
 };
+
+const confirmDelete = async () => {
+    console.log("confirmDelete", deleteTarget.value);
+    await deleteLevel(deleteTarget.value, {
+        onSuccess: async () => {
+            await fetchData();
+            await nextTick();
+            setupRootSortable();
+        }
+    });
+    deleteConfirmModalOpen.value = false;
+    deleteTarget.value = null;
+}
 
 const handleEdit = (level: any) => {
     console.log("handleEdit", level);
@@ -44,7 +73,17 @@ const handleAddSub = (level: any) => {
 };
 
 const setupRootSortable = () => {
-    useSortable(rootBodyRef, data, {
+    // 清理舊的實例
+    if (sortableStop) {
+        sortableStop();
+        sortableStop = null;
+    }
+
+    if (!rootBodyRef.value) {
+        return;
+    }
+
+    const { stop } = useSortable(rootBodyRef, data, {
         // group: "nested",
         handle: "tr[data-depth='0'] .drag-handle",
         animation: 150,
@@ -97,7 +136,16 @@ const setupRootSortable = () => {
             });
         }
     });
+    sortableStop = stop;
 };
+
+// 組件卸載時清理
+onUnmounted(() => {
+    if (sortableStop) {
+        sortableStop();
+        sortableStop = null;
+    }
+});
 
 onMounted(async () => {
     await fetchData();
@@ -109,21 +157,20 @@ onMounted(async () => {
 <template>
     <UDashboardPanel>
         <template #header>
-            <UDashboardNavbar title="管理系統架構" :ui="{ right: 'gap-3' }">
+            <UDashboardNavbar
+                title="管理系統架構"
+                :ui="{ right: 'gap-3', title: 'text-primary' }">
                 <template #leading>
                     <UDashboardSidebarCollapse />
                 </template>
-            </UDashboardNavbar>
-            <UDashboardToolbar>
                 <template #right>
                     <UButton
-                        color="primary"
-                        variant="outline"
-                        icon="lucide:plus"
                         label="新增層級1"
+                        color="primary"
+                        icon="lucide:plus"
                         @click="addRootModalOpen = true" />
                 </template>
-            </UDashboardToolbar>
+            </UDashboardNavbar>
         </template>
         <template #body>
             <div v-if="loading" class="flex items-center justify-center py-12">
@@ -154,23 +201,23 @@ onMounted(async () => {
                 <!-- 桌面版：表格佈局 -->
                 <div class="hidden md:block overflow-x-auto">
                     <table
-                        class="w-full table-fixed border-separate border-spacing-0">
+                        class="w-full table-fixed border-separate border-spacing-0 text-sm">
                         <thead>
                             <tr class="bg-elevated/50">
                                 <th
-                                    class="py-2 px-4 text-left first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r font-semibold">
+                                    class="py-2 px-4 text-left first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r">
                                     名稱
                                 </th>
                                 <th
-                                    class="py-2 px-4 text-left first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r font-semibold">
+                                    class="py-2 px-4 text-left first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r">
                                     模組名稱
                                 </th>
                                 <th
-                                    class="w-[120px] py-2 px-4 text-left border-y border-default first:border-l last:border-r font-semibold">
+                                    class="w-[120px] py-2 px-4 text-left border-y border-default first:border-l last:border-r">
                                     是否上線
                                 </th>
                                 <th
-                                    class="py-2 px-4 text-left border-y border-default first:border-l last:border-r font-semibold">
+                                    class="py-2 px-4 text-left border-y border-default first:border-l last:border-r">
                                     操作
                                 </th>
                             </tr>
@@ -199,6 +246,9 @@ onMounted(async () => {
                 </div>
             </div>
         </template>
+        <template #footer>
+            <PageFooter />
+        </template>
     </UDashboardPanel>
 
     <!-- 新增層級1 Modal -->
@@ -211,7 +261,9 @@ onMounted(async () => {
     <StructureLevelModal
         v-model:open="addSubLevelModalOpen"
         mode="add-sub"
-        :parent-id="currentParentLevel?.id ? parseInt(currentParentLevel.id) : 0"
+        :parent-id="
+            currentParentLevel?.id ? parseInt(currentParentLevel.id) : 0
+        "
         :parent-name="currentParentLevel?.label"
         @added="handleModalSuccess" />
 
@@ -221,4 +273,14 @@ onMounted(async () => {
         mode="edit"
         :level="currentEditLevel"
         @updated="handleModalSuccess" />
+
+    <DeleteConfirmModal
+        v-model:open="deleteConfirmModalOpen"
+        title="確認刪除"
+        :description="
+            deleteTarget
+                ? `確定要刪除「${deleteTarget.label}」嗎？此操作無法復原，「${deleteTarget.label}」將會被永久刪除。`
+                : ''
+        "
+        :on-confirm="confirmDelete" />
 </template>

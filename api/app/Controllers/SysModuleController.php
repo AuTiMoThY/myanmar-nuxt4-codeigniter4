@@ -1,16 +1,16 @@
 <?php
 namespace App\Controllers;
 
-use App\Models\SysmoduleModel;
+use App\Models\SysModuleModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class ModuleController extends BaseController
 {
-    protected $sysmoduleModel;
+    protected $SysModuleModel;
 
     public function __construct()
     {
-        $this->sysmoduleModel = new SysmoduleModel();
+        $this->SysModuleModel = new SysModuleModel();
     }
 
     /**
@@ -19,7 +19,7 @@ class ModuleController extends BaseController
     public function get()
     {
         try {
-            $modules = $this->sysmoduleModel->orderBy('id', 'ASC')->findAll();
+            $modules = $this->SysModuleModel->orderBy('id', 'ASC')->findAll();
 
             return $this->response->setJSON([
                 'success' => true,
@@ -45,7 +45,7 @@ class ModuleController extends BaseController
 
         $rules = [
             'label' => 'required|min_length[1]|max_length[100]',
-            'name' => 'required|min_length[1]|max_length[100]|regex_match[/^[a-zA-Z0-9_-]+$/]',
+            'name' => 'required|min_length[1]|max_length[100]|regex_match[/^[a-zA-Z0-9_\/-]+$/]',
         ];
 
         if (!$this->validateData($data, $rules)) {
@@ -58,7 +58,7 @@ class ModuleController extends BaseController
 
         try {
             // 檢查模組代碼是否已存在
-            $existingModule = $this->sysmoduleModel->where('name', $data['name'])->first();
+            $existingModule = $this->SysModuleModel->where('name', $data['name'])->first();
             if ($existingModule) {
                 return $this->response->setStatusCode(ResponseInterface::HTTP_CONFLICT)->setJSON([
                     'success' => false,
@@ -74,7 +74,7 @@ class ModuleController extends BaseController
                 'name' => trim($data['name']),
             ];
 
-            $insertId = $this->sysmoduleModel->insert($insertData);
+            $insertId = $this->SysModuleModel->insert($insertData);
 
             if (!$insertId) {
                 return $this->response->setStatusCode(ResponseInterface::HTTP_INTERNAL_SERVER_ERROR)->setJSON([
@@ -117,7 +117,7 @@ class ModuleController extends BaseController
         }
 
         // 檢查模組是否存在
-        $module = $this->sysmoduleModel->find($id);
+        $module = $this->SysModuleModel->find($id);
         if (!$module) {
             return $this->response->setStatusCode(ResponseInterface::HTTP_NOT_FOUND)->setJSON([
                 'success' => false,
@@ -127,7 +127,7 @@ class ModuleController extends BaseController
 
         $rules = [
             'label' => 'permit_empty|min_length[1]|max_length[100]',
-            'name' => 'permit_empty|min_length[1]|max_length[100]|regex_match[/^[a-zA-Z0-9_-]+$/]',
+            'name' => 'permit_empty|min_length[1]|max_length[100]|regex_match[/^[a-zA-Z0-9_\/-]+$/]',
         ];
 
         if (!$this->validateData($data, $rules)) {
@@ -141,22 +141,29 @@ class ModuleController extends BaseController
         try {
             $updateData = [];
 
-            if (isset($data['label'])) {
-                $updateData['label'] = trim($data['label']);
-            }
             if (isset($data['name'])) {
-                // 檢查模組代碼是否已被其他模組使用
-                $existingModule = $this->sysmoduleModel->where('name', trim($data['name']))->where('id !=', $id)->first();
-                if ($existingModule) {
-                    return $this->response->setStatusCode(ResponseInterface::HTTP_CONFLICT)->setJSON([
-                        'success' => false,
-                        'message' => '模組代碼已存在',
-                        'errors' => [
-                            'name' => '此模組代碼已被其他模組使用',
-                        ],
-                    ]);
+                $newName = trim($data['name']);
+                // 檢查代碼是否真的改變了
+                if ($module['name'] !== $newName) {
+                    // 只有代碼改變時才需要檢查唯一性
+                    $existingModule = $this->SysModuleModel->where('name', $newName)->where('id !=', $id)->first();
+                    if ($existingModule) {
+                        return $this->response->setStatusCode(ResponseInterface::HTTP_CONFLICT)->setJSON([
+                            'success' => false,
+                            'message' => '模組代碼已存在',
+                            'errors' => [
+                                'name' => '此模組代碼已被其他模組使用',
+                            ],
+                        ]);
+                    }
+                    $updateData['name'] = $newName;
                 }
-                $updateData['name'] = trim($data['name']);
+            }
+            if (isset($data['label'])) {
+                $newLabel = trim($data['label']);
+                if (($module['label'] ?? null) !== $newLabel) {
+                    $updateData['label'] = $newLabel;
+                }
             }
 
             if (empty($updateData)) {
@@ -166,13 +173,18 @@ class ModuleController extends BaseController
                 ]);
             }
 
-            $updated = $this->sysmoduleModel->update($id, $updateData);
+            // 跳過 Model 驗證，因為我們已經在 Controller 中手動驗證了
+            $updated = $this->SysModuleModel->skipValidation(true)->update($id, $updateData);
 
             if (!$updated) {
-                return $this->response->setStatusCode(ResponseInterface::HTTP_INTERNAL_SERVER_ERROR)->setJSON([
+                $error = $this->SysModuleModel->errors();
+                $response = [
                     'success' => false,
                     'message' => '更新模組失敗，請稍後再試',
-                ]);
+                    'error' => 'Model update failed',
+                    'model_errors' => $error,
+                ];
+                return $this->response->setStatusCode(ResponseInterface::HTTP_INTERNAL_SERVER_ERROR)->setJSON($response);
             }
 
             return $this->response->setJSON([
@@ -207,7 +219,7 @@ class ModuleController extends BaseController
 
         try {
             // 檢查模組是否存在
-            $module = $this->sysmoduleModel->find($id);
+            $module = $this->SysModuleModel->find($id);
             if (!$module) {
                 return $this->response->setStatusCode(ResponseInterface::HTTP_NOT_FOUND)->setJSON([
                     'success' => false,
@@ -215,7 +227,7 @@ class ModuleController extends BaseController
                 ]);
             }
 
-            $deleted = $this->sysmoduleModel->delete($id);
+            $deleted = $this->SysModuleModel->delete($id);
             if (!$deleted) {
                 return $this->response->setStatusCode(ResponseInterface::HTTP_INTERNAL_SERVER_ERROR)->setJSON([
                     'success' => false,

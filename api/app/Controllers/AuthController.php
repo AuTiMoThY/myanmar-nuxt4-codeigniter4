@@ -2,18 +2,18 @@
 
 namespace App\Controllers;
 
-use App\Models\UserModel;
+use App\Models\SysUserModel;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\RESTful\ResourceController;
 
 class AuthController extends ResourceController
 {
     protected $format = 'json';
-    protected $userModel;
+    protected $sysUserModel;
 
     public function __construct()
     {
-        $this->userModel = new UserModel();
+        $this->sysUserModel = new SysUserModel();
         helper('jwt'); // 我們稍後會建立這個 helper
     }
 
@@ -34,7 +34,7 @@ class AuthController extends ResourceController
         $login_id = $this->request->getVar('login_id');
         $password = $this->request->getVar('password');
 
-        $user = $this->userModel->verifyLogin($login_id, $password);
+        $user = $this->sysUserModel->verifyLogin($login_id, $password);
 
         if (!$user) {
             return $this->fail('使用者名稱或密碼錯誤', ResponseInterface::HTTP_UNAUTHORIZED);
@@ -71,7 +71,7 @@ class AuthController extends ResourceController
                 return $this->fail('無效的 token', ResponseInterface::HTTP_UNAUTHORIZED);
             }
 
-            $user = $this->userModel->getUserById($decoded->user_id);
+            $user = $this->sysUserModel->getUserById($decoded->user_id);
 
             if (!$user) {
                 return $this->fail('找不到使用者', ResponseInterface::HTTP_NOT_FOUND);
@@ -122,13 +122,13 @@ class AuthController extends ResourceController
             'status'    => 'active',
         ];
 
-        $userId = $this->userModel->insert($data);
+        $userId = $this->sysUserModel->insert($data);
 
         if (!$userId) {
             return $this->fail('註冊失敗', ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        $user = $this->userModel->getUserById($userId);
+        $user = $this->sysUserModel->getUserById($userId);
 
         // 自動登入
         $token = generateJWT($user);
@@ -167,7 +167,7 @@ class AuthController extends ResourceController
             //     return $this->fail('沒有權限', ResponseInterface::HTTP_FORBIDDEN);
             // }
 
-            $users = $this->userModel->getAllUsers();
+            $users = $this->sysUserModel->getAllUsers();
 
             return $this->respond([
                 'status' => 'success',
@@ -200,7 +200,7 @@ class AuthController extends ResourceController
                 return $this->fail('無效的使用者 ID', ResponseInterface::HTTP_BAD_REQUEST);
             }
 
-            $user = $this->userModel->getUserById((int) $id);
+            $user = $this->sysUserModel->getUserById((int) $id);
 
             if (!$user) {
                 return $this->fail('找不到使用者', ResponseInterface::HTTP_NOT_FOUND);
@@ -264,13 +264,13 @@ class AuthController extends ResourceController
                 return $this->fail('沒有可更新的欄位', ResponseInterface::HTTP_BAD_REQUEST);
             }
 
-            $updated = $this->userModel->update((int) $id, $updateData);
+            $updated = $this->sysUserModel->update((int) $id, $updateData);
 
             if (!$updated) {
                 return $this->fail('更新失敗', ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
             }
 
-            $user = $this->userModel->getUserById((int) $id);
+            $user = $this->sysUserModel->getUserById((int) $id);
 
             return $this->respond([
                 'status'  => 'success',

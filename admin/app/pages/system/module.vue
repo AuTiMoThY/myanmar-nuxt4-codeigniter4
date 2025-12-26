@@ -4,10 +4,12 @@ definePageMeta({
 });
 import type { TableColumn } from "@nuxt/ui";
 
-
+const UButton = resolveComponent("UButton");
 const { data, loading, fetchData, deleteModule } = useModule();
 const addModuleModalOpen = ref(false);
 const editModuleModalOpen = ref(false);
+const deleteConfirmModalOpen = ref(false);
+const deleteTarget = ref<{ id: number | string; label: string } | null>(null);
 const editData = ref<any>(null);
 const columns: TableColumn<any>[] = [
     { accessorKey: "label", header: "模組名稱" },
@@ -15,7 +17,6 @@ const columns: TableColumn<any>[] = [
     {
         header: "操作",
         cell: ({ row }) => {
-            const UButton = resolveComponent("UButton");
             return h("div", { class: "flex items-center gap-2" }, [
                 h(UButton, {
                     icon: "i-lucide-edit",
@@ -39,20 +40,26 @@ const columns: TableColumn<any>[] = [
 
 const addModule = () => {
     addModuleModalOpen.value = true;
-}
+};
 
 const editModule = (data: any) => {
     console.log("editModule", data);
     editData.value = data;
     editModuleModalOpen.value = true;
-}
+};
 
 const handleDelete = async (data: any) => {
-    await deleteModule({
-        id: data.id,
+    deleteTarget.value = { id: Number(data.id), label: data.label };
+    deleteConfirmModalOpen.value = true;
+};
+
+const confirmDelete = async () => {
+    await deleteModule(deleteTarget.value?.id as number, {
         onSuccess: () => fetchData()
     });
-}
+    deleteConfirmModalOpen.value = false;
+    deleteTarget.value = null;
+};
 
 onMounted(() => {
     fetchData();
@@ -61,37 +68,26 @@ onMounted(() => {
 <template>
     <UDashboardPanel>
         <template #header>
-            <UDashboardNavbar title="模組設定" :ui="{ right: 'gap-3' }">
+            <UDashboardNavbar
+                title="模組設定"
+                :ui="{ right: 'gap-3', title: 'text-primary' }">
                 <template #leading>
                     <UDashboardSidebarCollapse />
                 </template>
-            </UDashboardNavbar>
-            <UDashboardToolbar>
                 <template #right>
                     <UButton
-                        color="primary"
-                        variant="outline"
-                        icon="lucide:plus"
                         label="新增模組"
+                        color="primary"
+                        icon="lucide:plus"
                         @click="addModule" />
                 </template>
-            </UDashboardToolbar>
+            </UDashboardNavbar>
         </template>
         <template #body>
-            <UTable
-                ref="table"
-                class="shrink-0"
-                :data="data"
-                :columns="columns"
-                :loading="loading"
-                :ui="{
-                    base: 'table-fixed border-separate border-spacing-0',
-                    thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
-                    tbody: '[&>tr]:last:[&>td]:border-b-0',
-                    th: 'py-2 first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
-                    td: 'border-b border-default',
-                    separator: 'h-0'
-                }" />
+            <DataTable :data="data" :columns="columns" :loading="loading" />
+        </template>
+        <template #footer>
+            <PageFooter />
         </template>
     </UDashboardPanel>
     <ModuleFrmModal
@@ -103,4 +99,13 @@ onMounted(() => {
         mode="edit"
         :data="editData"
         @updated="fetchData" />
+    <DeleteConfirmModal
+        v-model:open="deleteConfirmModalOpen"
+        title="確認刪除"
+        :description="
+            deleteTarget
+                ? `確定要刪除「${deleteTarget.label}」嗎？此操作無法復原，「${deleteTarget.label}」將會被永久刪除。`
+                : ''
+        "
+        :on-confirm="confirmDelete" />
 </template>

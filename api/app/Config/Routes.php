@@ -26,14 +26,14 @@ $routes->get('auth/users/(:num)', 'AuthController::getUser/$1');
 $routes->put('auth/users/(:num)', 'AuthController::updateUser/$1');
 
 // 系統架構層級相關路由
-$routes->post('/structure/add', 'StructureController::add');
-$routes->post('/structure/update', 'StructureController::update');
-$routes->post('/structure/update-sort-order', 'StructureController::updateSortOrder');
-$routes->post('/structure/delete', 'StructureController::delete');
-$routes->get('/structure/get', 'StructureController::get');
+$routes->post('/structure/add', 'SysStructureController::add');
+$routes->post('/structure/update', 'SysStructureController::update');
+$routes->post('/structure/update-sort-order', 'SysStructureController::updateSortOrder');
+$routes->post('/structure/delete', 'SysStructureController::delete');
+$routes->get('/structure/get', 'SysStructureController::get');
 
 // 模組相關路由
-$routes->post('/module/add', 'ModuleController::add');
-$routes->post('/module/update', 'ModuleController::update');
-$routes->post('/module/delete', 'ModuleController::delete');
-$routes->get('/module/get', 'ModuleController::get');
+$routes->post('/module/add', 'SysModuleController::add');
+$routes->post('/module/update', 'SysModuleController::update');
+$routes->post('/module/delete', 'SysModuleController::delete');
+$routes->get('/module/get', 'SysModuleController::get');

@@ -10,7 +10,7 @@ import {
     onUnmounted
 } from "vue";
 import { useSortable } from "@vueuse/integrations/useSortable";
-import { LEVEL_STATUS_LABEL_MAP } from "~/constants/system/level_status";
+import { LEVEL_STATUS_LABEL_MAP } from "~/constants/level_status";
 import TreeTableRow from "./TreeTableRow.vue";
 
 const props = defineProps<{
@@ -34,6 +34,7 @@ const indentWidth = 24; // 每層縮進 24px
 const childrenBodyRef = ref<HTMLElement | null>(null);
 const childrenData = shallowRef<any[]>([]);
 let sortableStop: (() => void) | null = null;
+
 
 const levelStatusLabelMap = LEVEL_STATUS_LABEL_MAP;
 
@@ -213,11 +214,6 @@ onUnmounted(() => {
             <div class="grid grid-cols-2 gap-2 text-sm">
                 <div class="flex flex-col gap-1">
                     <span class="text-gray-500 dark:text-gray-400 text-xs">
-                        模組： {{ moduleName }}
-                    </span>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <span class="text-gray-500 dark:text-gray-400 text-xs">
                         是否上線
                     </span>
                     <UBadge
@@ -296,6 +292,7 @@ onUnmounted(() => {
         <td class="py-2 px-4 border-b border-default">
             <div class="flex items-center gap-2">
                 <UBadge
+                    variant="outline"
                     :label="levelStatusLabelMap[level.status] ?? level.status"
                     :color="level.status === '1' ? 'success' : 'error'" />
             </div>
@@ -306,14 +303,12 @@ onUnmounted(() => {
                     icon="i-lucide-edit"
                     label="編輯"
                     color="primary"
-                    variant="outline"
                     size="xs"
                     @click="onEdit?.(level)" />
                 <UButton
                     icon="i-lucide-plus"
                     label="加入子層級"
                     color="primary"
-                    variant="outline"
                     size="xs"
                     :disabled="!canAddSub"
                     :title="!canAddSub ? '已有模組，無法新增子層級' : ''"

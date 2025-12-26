@@ -43,7 +43,10 @@ export const useModule = () => {
                 data.value = [];
             }
         } catch (error: any) {
-            const msg = error?.data?.message || error?.message || "取得模組資料失敗，請稍後再試";
+            const msg =
+                error?.data?.message ||
+                error?.message ||
+                "取得模組資料失敗，請稍後再試";
             toast.add({ title: msg, color: "error" });
             console.error("fetchData error", error);
             data.value = [];
@@ -80,9 +83,9 @@ export const useModule = () => {
         }
 
         if (form.name && form.name.trim() !== "") {
-            const namePattern = /^[a-zA-Z0-9_-]+$/;
+            const namePattern = /^[a-zA-Z0-9_\/-]+$/;
             if (!namePattern.test(form.name.trim())) {
-                errors.name = "模組代碼只能包含英文字母、數字、底線和連字號";
+                errors.name = "模組代碼只能包含英文字母、數字、底線、斜線和連字號";
                 isValid = false;
             }
         }
@@ -105,22 +108,20 @@ export const useModule = () => {
         if (!data) return;
         form.label = data.label || "";
         form.name = data.name || "";
-    }
+    };
 
-    const addModule = async (
-        options?: {
-            closeModalRef?: Ref<boolean>;
-            onSuccess?: () => void;
-        }
-    ) => {
+    const addModule = async (options?: {
+        closeModalRef?: Ref<boolean>;
+        onSuccess?: () => void;
+    }) => {
         if (!validateForm()) return false;
-        
+
         loading.value = true;
 
         const targetModal = options?.closeModalRef ?? modalOpen;
 
         console.log("add", form);
-        
+
         try {
             const res = await $fetch<{
                 success: boolean;
@@ -144,7 +145,9 @@ export const useModule = () => {
                     : null;
             if (fieldErrors) {
                 Object.entries(fieldErrors).forEach(([key, val]) => {
-                    const msg = Array.isArray(val) ? val.join(", ") : String(val);
+                    const msg = Array.isArray(val)
+                        ? val.join(", ")
+                        : String(val);
                     // @ts-ignore
                     errors[key] = msg;
                 });
@@ -161,23 +164,21 @@ export const useModule = () => {
         } finally {
             loading.value = false;
         }
-    }
+    };
 
-    const editModule = async (
-        options?: {
-            closeModalRef?: Ref<boolean>;
-            onSuccess?: () => void;
-            id?: number | string;
-        }
-    ) => {
+    const editModule = async (options?: {
+        closeModalRef?: Ref<boolean>;
+        onSuccess?: () => void;
+        id?: number | string;
+    }) => {
         if (!validateForm()) return false;
-        
+
         loading.value = true;
 
         const targetModal = options?.closeModalRef ?? modalOpen;
 
         console.log("edit", form);
-        
+
         try {
             const res = await $fetch<{
                 success: boolean;
@@ -193,8 +194,16 @@ export const useModule = () => {
                 resetForm();
                 targetModal.value = false;
                 options?.onSuccess?.();
+                toast.add({
+                    title: res.message ?? "修改成功",
+                    color: "success"
+                });
             } else {
                 submitError.value = res?.message;
+                toast.add({
+                    title: res?.message ?? "修改失敗",
+                    color: "error"
+                });
             }
         } catch (error: any) {
             const data = error?.data || error?.response?._data;
@@ -204,7 +213,9 @@ export const useModule = () => {
                     : null;
             if (fieldErrors) {
                 Object.entries(fieldErrors).forEach(([key, val]) => {
-                    const msg = Array.isArray(val) ? val.join(", ") : String(val);
+                    const msg = Array.isArray(val)
+                        ? val.join(", ")
+                        : String(val);
                     // @ts-ignore
                     errors[key] = msg;
                 });
@@ -221,14 +232,14 @@ export const useModule = () => {
         } finally {
             loading.value = false;
         }
-    }
+    };
     const deleteModule = async (
+        id: number | string,
         options?: {
-            id?: number | string;
             onSuccess?: () => void;
         }
     ) => {
-        if (!options?.id) return false;
+        if (!id) return false;
         loading.value = true;
         try {
             const res = await $fetch<{
@@ -236,7 +247,7 @@ export const useModule = () => {
                 message: string;
             }>(`${apiBase}/module/delete`, {
                 method: "POST",
-                body: { id: options.id }
+                body: { id }
             });
             if (res.success) {
                 toast.add({
@@ -261,7 +272,9 @@ export const useModule = () => {
                     : null;
             if (fieldErrors) {
                 Object.entries(fieldErrors).forEach(([key, val]) => {
-                    const msg = Array.isArray(val) ? val.join(", ") : String(val);
+                    const msg = Array.isArray(val)
+                        ? val.join(", ")
+                        : String(val);
                     // @ts-ignore
                     errors[key] = msg;
                 });
@@ -278,8 +291,7 @@ export const useModule = () => {
         } finally {
             loading.value = false;
         }
-    
-    }
+    };
     return {
         form,
         errors,
@@ -293,5 +305,5 @@ export const useModule = () => {
         addModule,
         editModule,
         deleteModule
-    }
-}
+    };
+};
