@@ -27,12 +27,14 @@ class AuthController extends ResourceController
             'password' => 'required',
         ];
 
+        $data = $this->request->getJSON(true) ?: $this->request->getPost();
+
         if (!$this->validate($rules)) {
             return $this->fail($this->validator->getErrors(), ResponseInterface::HTTP_BAD_REQUEST);
         }
 
-        $login_id = $this->request->getVar('login_id');
-        $password = $this->request->getVar('password');
+        $login_id = $data['login_id'] ?? '';
+        $password = $data['password'] ?? '';
 
         $user = $this->sysUserModel->verifyLogin($login_id, $password);
 
@@ -44,10 +46,10 @@ class AuthController extends ResourceController
         $token = generateJWT($user);
 
         return $this->respond([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => '登入成功',
-            'data'    => [
-                'user'  => $user,
+            'data' => [
+                'user' => $user,
                 'token' => $token,
             ],
         ], ResponseInterface::HTTP_OK);
@@ -60,13 +62,13 @@ class AuthController extends ResourceController
     {
         try {
             $token = $this->getBearerToken();
-            
+
             if (!$token) {
                 return $this->fail('未提供認證 token', ResponseInterface::HTTP_UNAUTHORIZED);
             }
 
             $decoded = verifyJWT($token);
-            
+
             if (!$decoded) {
                 return $this->fail('無效的 token', ResponseInterface::HTTP_UNAUTHORIZED);
             }
@@ -79,7 +81,7 @@ class AuthController extends ResourceController
 
             return $this->respond([
                 'status' => 'success',
-                'data'   => $user,
+                'data' => $user,
             ], ResponseInterface::HTTP_OK);
         } catch (\Exception $e) {
             return $this->fail($e->getMessage(), ResponseInterface::HTTP_UNAUTHORIZED);
@@ -92,7 +94,7 @@ class AuthController extends ResourceController
     public function logout()
     {
         return $this->respond([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => '登出成功',
         ], ResponseInterface::HTTP_OK);
     }
@@ -103,26 +105,28 @@ class AuthController extends ResourceController
     public function register()
     {
         $rules = [
-            'login_id'  => 'required|min_length[3]|max_length[100]|is_unique[users.login_id]',
-            'email'     => 'required|valid_email|is_unique[users.email]',
-            'password'  => 'required|min_length[8]',
+            'login_id' => 'required|min_length[3]|max_length[100]|is_unique[users.login_id]',
+            'email' => 'required|valid_email|is_unique[users.email]',
+            'password' => 'required|min_length[8]',
             'full_name' => 'permit_empty|max_length[255]',
         ];
+
+        $data = $this->request->getJSON(true) ?: $this->request->getPost();
 
         if (!$this->validate($rules)) {
             return $this->fail($this->validator->getErrors(), ResponseInterface::HTTP_BAD_REQUEST);
         }
 
-        $data = [
-            'login_id'  => $this->request->getVar('login_id'),
-            'email'     => $this->request->getVar('email'),
-            'password'  => $this->request->getVar('password'),
-            'full_name' => $this->request->getVar('full_name'),
-            'role'      => 'user', // 預設角色
-            'status'    => 'active',
+        $insertData = [
+            'login_id' => $data['login_id'] ?? '',
+            'email' => $data['email'] ?? '',
+            'password' => $data['password'] ?? '',
+            'full_name' => $data['full_name'] ?? '',
+            'role' => 'user', // 預設角色
+            'status' => 'active',
         ];
 
-        $userId = $this->sysUserModel->insert($data);
+        $userId = $this->sysUserModel->insert($insertData);
 
         if (!$userId) {
             return $this->fail('註冊失敗', ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
@@ -134,10 +138,10 @@ class AuthController extends ResourceController
         $token = generateJWT($user);
 
         return $this->respond([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => '註冊成功',
-            'data'    => [
-                'user'  => $user,
+            'data' => [
+                'user' => $user,
                 'token' => $token,
             ],
         ], ResponseInterface::HTTP_CREATED);
@@ -150,13 +154,13 @@ class AuthController extends ResourceController
     {
         try {
             $token = $this->getBearerToken();
-            
+
             if (!$token) {
                 return $this->fail('未提供認證 token', ResponseInterface::HTTP_UNAUTHORIZED);
             }
 
             $decoded = verifyJWT($token);
-            
+
             if (!$decoded) {
                 return $this->fail('無效的 token', ResponseInterface::HTTP_UNAUTHORIZED);
             }
@@ -171,7 +175,7 @@ class AuthController extends ResourceController
 
             return $this->respond([
                 'status' => 'success',
-                'data'   => $users,
+                'data' => $users,
             ], ResponseInterface::HTTP_OK);
         } catch (\Exception $e) {
             return $this->fail($e->getMessage(), ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
@@ -208,7 +212,7 @@ class AuthController extends ResourceController
 
             return $this->respond([
                 'status' => 'success',
-                'data'   => $user,
+                'data' => $user,
             ], ResponseInterface::HTTP_OK);
         } catch (\Exception $e) {
             return $this->fail($e->getMessage(), ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
@@ -237,17 +241,16 @@ class AuthController extends ResourceController
                 return $this->fail('無效的使用者 ID', ResponseInterface::HTTP_BAD_REQUEST);
             }
 
+            $data = $this->request->getJSON(true) ?: $this->request->getPost();
+
             $rules = [
                 'login_id' => 'permit_empty|min_length[3]|max_length[100]|is_unique[users.login_id,id,{id}]',
-                'email'    => 'permit_empty|valid_email|is_unique[users.email,id,{id}]',
+                'email' => 'permit_empty|valid_email|is_unique[users.email,id,{id}]',
                 'password' => 'permit_empty|min_length[8]',
-                'name'     => 'permit_empty|max_length[255]',
-                'status'   => 'permit_empty|in_list[active,inactive,suspended]',
+                'name' => 'permit_empty|max_length[255]',
+                'status' => 'permit_empty|in_list[active,inactive,suspended]',
             ];
 
-            // 在替換規則中的 {id}
-            $this->validator->setRules($rules);
-            $data = $this->request->getRawInput();
             if (!$this->validate($rules)) {
                 return $this->fail($this->validator->getErrors(), ResponseInterface::HTTP_BAD_REQUEST);
             }
@@ -273,9 +276,9 @@ class AuthController extends ResourceController
             $user = $this->sysUserModel->getUserById((int) $id);
 
             return $this->respond([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => '更新成功',
-                'data'    => $user,
+                'data' => $user,
             ], ResponseInterface::HTTP_OK);
         } catch (\Exception $e) {
             return $this->fail($e->getMessage(), ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
@@ -288,13 +291,13 @@ class AuthController extends ResourceController
     private function getBearerToken()
     {
         $header = $this->request->getHeaderLine('Authorization');
-        
+
         if (!empty($header)) {
             if (preg_match('/Bearer\s(\S+)/', $header, $matches)) {
                 return $matches[1];
             }
         }
-        
+
         return null;
     }
 }

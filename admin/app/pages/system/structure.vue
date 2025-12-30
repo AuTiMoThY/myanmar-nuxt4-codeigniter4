@@ -2,14 +2,7 @@
 definePageMeta({
     middleware: "auth"
 });
-import {
-    computed,
-    nextTick,
-    onMounted,
-    onUnmounted,
-    ref,
-    shallowRef
-} from "vue";
+
 import { useSortable } from "@vueuse/integrations/useSortable";
 import StructureLevelModal from "~/components/Structure/LevelModal.vue";
 import StructureTreeTableRow from "~/components/Structure/TreeTableRow.vue";
@@ -28,18 +21,20 @@ const deleteTarget = ref<{ id: string; label: string } | null>(null);
 // 當前操作的層級資料
 const currentParentLevel = ref<any>(null);
 const currentEditLevel = ref<any>(null);
+const isExpanded = ref(true);
+const rootLevels = computed(() => (data.value || []).filter(Boolean));
 
 const handleModalSuccess = async () => {
     await fetchData();
+    // 注意：側邊欄選單會由 composable 自動更新（在 addLevel/updateLevel 成功後）
     await nextTick();
     setupRootSortable();
 };
 
-const rootLevels = computed(() => (data.value || []).filter(Boolean));
 
 const handleDelete = (level: any) => {
     console.log("handleDelete", level);
-    
+
     deleteTarget.value = { id: level.id, label: level.label };
     deleteConfirmModalOpen.value = true;
 };
@@ -49,13 +44,14 @@ const confirmDelete = async () => {
     await deleteLevel(deleteTarget.value, {
         onSuccess: async () => {
             await fetchData();
+            // 注意：側邊欄選單會由 composable 自動更新（在 deleteLevel 成功後）
             await nextTick();
             setupRootSortable();
         }
     });
     deleteConfirmModalOpen.value = false;
     deleteTarget.value = null;
-}
+};
 
 const handleEdit = (level: any) => {
     console.log("handleEdit", level);
@@ -90,7 +86,13 @@ const setupRootSortable = () => {
         draggable: "tr[data-depth='0']",
         fallbackOnBody: true,
         swapThreshold: 0.65,
+        onStart: function (evt: any) {
+            console.log("onStart", evt);
+            // 拖曳開始時收合當前層級
+            isExpanded.value = false;
+        },
         onUpdate: async (evt: any) => {
+
             console.log("onUpdate", evt);
             const list = data.value || [];
             const rows = (Array.from(
@@ -130,6 +132,7 @@ const setupRootSortable = () => {
 
             data.value = [...newList];
             await updateSortOrder(data.value);
+            // 注意：側邊欄選單會由 composable 自動更新（在 updateSortOrder 成功後）
             console.log("onUpdate done", {
                 movedId: evt.item?.dataset?.levelId,
                 idsAfter: data.value.map((x) => x?.id)
@@ -186,6 +189,7 @@ onMounted(async () => {
                             v-if="level"
                             :level="level"
                             :depth="0"
+                            :is-expanded="isExpanded"
                             :on-edit="handleEdit"
                             :on-add-sub="handleAddSub"
                             :on-update-sort-order="updateSortOrder"
@@ -209,7 +213,11 @@ onMounted(async () => {
                                     名稱
                                 </th>
                                 <th
-                                    class="py-2 px-4 text-left first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r">
+                                    class="w-[120px] py-2 px-4 text-left first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r">
+                                    URL
+                                </th>
+                                <th
+                                    class="w-[180px] py-2 px-4 text-left first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r">
                                     模組名稱
                                 </th>
                                 <th
@@ -230,6 +238,7 @@ onMounted(async () => {
                                     v-if="level"
                                     :level="level"
                                     :depth="0"
+                                    :is-expanded="isExpanded"
                                     :on-edit="handleEdit"
                                     :on-add-sub="handleAddSub"
                                     :on-update-sort-order="updateSortOrder"

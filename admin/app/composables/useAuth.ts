@@ -44,7 +44,7 @@ export const useAuth = () => {
                     password,
                 },
             });
-
+            console.log("response", response);
             if (response.status === "success") {
                 token.value = response.data.token;
                 user.value = response.data.user;
@@ -72,7 +72,7 @@ export const useAuth = () => {
             console.error("登入錯誤:", error);
             return {
                 success: false,
-                message: error.data?.message || "登入失敗，請稍後再試",
+                message: error?.data?.messages?.error || "登入失敗，請稍後再試",
             };
         }
     };

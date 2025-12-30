@@ -91,6 +91,10 @@ const submitButtonText = computed(() => {
     }
 });
 
+const changeModule = (event: Event) => {
+    form.url = modulesData.value.find((module: any) => module.id === form.module_id)?.name;
+};
+
 // 處理提交
 const handleSubmit = async (event: Event) => {
     if (props.mode === "edit") {
@@ -184,12 +188,24 @@ onMounted(async () => {
                         defaultValue=""
                         :disabled="loading || isModuleSelectionLocked"
                         class="w-full"
-                        @input="clearError('module_id')" />
+                        @input="clearError('module_id')"
+                        @change="changeModule" />
                     <p
                         v-if="isModuleSelectionLocked"
                         class="mt-1 text-xs text-gray-500">
                         已有子層級，無法變更模組
                     </p>
+                </UFormField>
+                <UFormField
+                    label="自訂 URL（可選）"
+                    name="url"
+                    description="如果設定，將使用此 URL 而非模組代碼。例如：custom-contact">
+                    <UInput
+                        v-model="form.url"
+                        placeholder="例如：custom-contact（不需要前綴斜線）"
+                        size="lg"
+                        :disabled="loading"
+                        class="w-full" />
                 </UFormField>
                 <UCheckbox
                     v-model="form.status"

@@ -38,7 +38,7 @@ const handleLogin = async () => {
     error.value = "";
 
     const result = await login(formState.login_id, formState.password);
-
+    console.log("result", result);
     if (result.success) {
         // 處理記住我功能
         if (import.meta.client) {

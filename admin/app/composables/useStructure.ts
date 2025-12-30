@@ -6,6 +6,8 @@ export const useStructure = () => {
     const apiBase = runtimePublic.apiBase;
     const toast = useToast();
     const data = useState<any[]>("structure-data", () => []);
+    // 側邊欄專用的資料（只包含啟用的項目）
+    const asideData = useState<any[]>("structure-aside-data", () => []);
 
     const loading = useState("structure-loading", () => false);
     const submitError = ref("");
@@ -13,6 +15,7 @@ export const useStructure = () => {
     const form = reactive<LevelForm>({
         label: "",
         module_id: null,
+        url: null,
         status: true,
         parent_id: null
     });
@@ -46,6 +49,25 @@ export const useStructure = () => {
         loading.value = false;
     };
 
+    const fetchDataForAside = async () => {
+        loading.value = true;
+        const res = await $fetch<{
+            success: boolean;
+            data: any[];
+            message?: string;
+        }>(`${apiBase}/structure/get?tree=1&only_active=1`, {
+            method: "GET"
+        });
+        if (res?.success) {
+            // 使用獨立的 asideData，避免被管理頁面的 fetchData 覆蓋
+            asideData.value = (res.data || []).filter(Boolean);
+        } else {
+            console.error(res.message);
+            toast.add({ title: res.message, color: "error" });
+        }
+        loading.value = false;
+    };
+
     const updateSortOrder = async (list: any[]) => {
         const payload = (list || []).map((item, index) => ({
             id: item?.id,
@@ -62,6 +84,8 @@ export const useStructure = () => {
             });
             if (res?.success) {
                 toast.add({ title: "排序已更新", color: "success" });
+                // 自動更新側邊欄選單
+                await fetchDataForAside();
             } else {
                 console.error(res.message);
                 toast.add({ title: res.message, color: "error" });
@@ -75,6 +99,7 @@ export const useStructure = () => {
     const resetForm = (parentId: LevelForm["parent_id"] = null) => {
         form.label = "";
         form.module_id = null;
+        form.url = null;
         form.status = true;
         form.parent_id = parentId ?? null;
 
@@ -115,6 +140,7 @@ export const useStructure = () => {
         if (!level) return;
         form.label = level.label || "";
         form.module_id = level.module_id ?? null;
+        form.url = level.url ?? null;
         form.status =
             level.status === "1" || level.status === 1 || level.status === true;
         form.parent_id = level.parent_id ?? null;
@@ -169,6 +195,8 @@ export const useStructure = () => {
                 });
                 resetForm(parentId);
                 targetModal.value = false;
+                // 自動更新側邊欄選單
+                await fetchDataForAside();
                 options?.onSuccess?.();
                 return true;
             }
@@ -232,6 +260,8 @@ export const useStructure = () => {
                     title: response.message ?? "刪除成功",
                     color: "success"
                 });
+                // 自動更新側邊欄選單
+                await fetchDataForAside();
                 options?.onSuccess?.();
                 return true;
             }
@@ -297,6 +327,8 @@ export const useStructure = () => {
                 });
                 resetForm();
                 targetModal.value = false;
+                // 自動更新側邊欄選單
+                await fetchDataForAside();
                 options?.onSuccess?.();
                 return true;
             }
@@ -340,8 +372,10 @@ export const useStructure = () => {
 
     return {
         data,
+        asideData,
         loading,
         fetchData,
+        fetchDataForAside,
         updateSortOrder,
         deleteLevel,
         form,
